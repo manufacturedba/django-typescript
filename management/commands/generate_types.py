@@ -5,7 +5,7 @@ import os
 from django.conf import settings
 import json
 import re
-from django_typescript.management.typewriter import TypeWriter
+from django_typescript.management.typewriter import typewriter
 
 def writeLine(file, line):
     file.write(line + "\n")
@@ -128,16 +128,15 @@ def write_types(dependency_tree):
         # TODO: Write temporary files, validate, and then move to final destination
         # TODO: Write hyphenated name
         file_name = "%s.d.ts" % name
-        with open(file_name, "w") as temp_js:
-            typewriter = TypeWriter(temp_js)
+        with typewriter(file_name, "w") as temp_js:
             
             dependency_names = [dep.__name__ for dep in dependencies]
             
             if len(dependency_names) > 0:
                 for dependency in dependency_names:     
-                    typewriter.write_import(dependency, dependency)
+                    temp_js.write_import(dependency, dependency)
             
-            typewriter.write_new_line()
+            temp_js.write_new_line()
             
             # TODO: Capture all fields
             fields = []
@@ -155,7 +154,7 @@ def write_types(dependency_tree):
                     field_type = type_mappings[local_field.get_internal_type()]
                     fields.append((field_name, field_type))
             
-            typewriter.write_export(name, fields)
+            temp_js.write_export(name, fields)
             
             # TODO: Hook in tsc output for value
             subprocess.run(["tsc", temp_js.name, "--noEmit"], check=True)
