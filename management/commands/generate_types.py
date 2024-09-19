@@ -26,14 +26,15 @@ type_mappings = {
     EmailField: 'string',
 }
 
-"""
-    For a given model, work through dependencies and add self as node
-"""
-def build_node(model, layer, visited):    
+def build_node(model, layer, visited):
+    """
+        For a given model, work through dependencies and add self as node
+    """
     dependencies = []
     traversed_dependencies = []
     
     for local_field in model._meta.local_fields:
+        # TODO: Support recursive relationships for foreign keys i.e. models.ForeignKey("self")
         if local_field.is_relation:
             traversed_dependencies.append(local_field.related_model)
             dependencies.append(local_field.related_model)
@@ -94,47 +95,48 @@ def hyphenate_name(name):
      
 class Command(BaseCommand):
     help = "Generates types for your application's models"
-    
-    """
-    Writes types against a given module tree
-        {
-            nodes: [
-                (model, [dependencies])
-            ],
-            children: {
-                nodes: [
-                    (model, [dependencies])
-                ],
-                children: {
-                    ...
-                }
-            }
-        }
-    """  
+     
     def write_types(self, dependency_tree):
+        """
+            Writes types against a given module tree
+                {
+                    nodes: [
+                        (model, [dependencies])
+                    ],
+                    children: {
+                        nodes: [
+                            (model, [dependencies])
+                        ],
+                        children: {
+                            ...
+                        }
+                    }
+                }
+        """
+        
+        # From this point we move and stay within the write directory
         os.chdir(settings.DJANGO_TYPESCRIPT_DIR)
         
         generated_files = []
             
         for node in dependency_tree['nodes']:
             model = node[0]
-            # TODO: Use hyphentated case for file
-            name = model.__name__
             dependencies = node[1]
             
             # TODO: Write temporary files, validate, and then move to final destination
             model_name = model.__name__
+            # TODO: Switch to application or module as name of file
             file_name = "%s.d.ts" % hyphenate_name(model_name)
             self.stdout.write('Writing file %s' % file_name)
             # TODO: Consolidate types within the same module to same file
-            with typewriter(file_name, "w") as file:
+            with typewriter(file_name, "w") as typer:
+                typer.set_name(model_name)
                 
                 dependency_names = [dep.__name__ for dep in dependencies]
                 
                 if len(dependency_names) > 0:
                     for dependency in dependency_names:
-                        file.write_import(dependency, hyphenate_name(dependency)) 
-                    file.write_new_line()
+                        typer.add_import(dependency, hyphenate_name(dependency)) 
                 
                 def get_field_type(field):
                     if field.is_relation:
@@ -163,22 +165,25 @@ class Command(BaseCommand):
                     
                     fields.append((field_name, get_field_type(local_field)))
                 
-                file.write_export(name, fields)
+                typer.add_properties(fields)
                 
-                generated_files.append(file.name)
+                generated_files.append(file_name)
         
         if 'children' in dependency_tree:
             generated_files += self.write_types(dependency_tree['children'])
         
         return generated_files
     
-    """
-        Construct a tree of models in order that they can be processed
-    """
     def create_module_tree(self, models):
+        """
+            Construct a tree of models in order that they can be processed
+        """
         tree = {}
-        visited = []
+        visited = [] # Tracks every model we visit regardless of start-point
         
+        # Have all models serve as a seed to build the tree
+        # TODO: Have traversal exit early once the entry count reachesthe 
+        # number of models in the application
         for model in models:
             build_node(model, tree, visited)
         
