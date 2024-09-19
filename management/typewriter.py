@@ -2,7 +2,7 @@ from string import Template
 
 import_template = Template("import { $module } from './$filename'")
 export_open_template = Template("export type $module = {")
-property_template = Template("$key: $value")
+property_template = Template("  $key: $value")
 export_close_template = Template("}")
 
 class TypeWriter:
