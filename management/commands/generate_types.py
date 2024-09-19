@@ -123,6 +123,7 @@ class Command(BaseCommand):
             model_name = model.__name__
             file_name = "%s.d.ts" % hyphenate_name(model_name)
             self.stdout.write('Writing file %s' % file_name)
+            # TODO: Consolidate types within the same module to same file
             with typewriter(file_name, "w") as file:
                 
                 dependency_names = [dep.__name__ for dep in dependencies]
@@ -156,8 +157,6 @@ class Command(BaseCommand):
                 
                 file.write_export(name, fields)
                 
-                # TODO: Hook in tsc output for value
-                subprocess.run(["tsc", file.name, "--noEmit"], check=True)
                 generated_files.append(file.name)
         
         if 'children' in dependency_tree:
