@@ -98,7 +98,7 @@ class Command(BaseCommand):
      
     def write_types(self, dependency_tree):
         """
-            Writes types against a given module tree
+            Writes types against a given module tree. Tree should be ordered from modules to their dependents
                 {
                     nodes: [
                         (model, [dependencies])
