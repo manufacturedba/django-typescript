@@ -1,5 +1,9 @@
 # Python
 *.pyc
 
+# Packaging
+dist
+*.egg-info
+
 # OS
 .DS_Store

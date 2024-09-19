@@ -1,14 +1,16 @@
 # Django Typescript
 
-Django Typescript generates types against your Django application models
+Django Typescript generates typings against your Django application models
 
-**Please note that this is a work in progress and is not yet ready for real use.**
+**Please note that this is a work in progress and is not yet ready for production.**
 
 ## Getting Started
 
+This package has only been tested against Django 5.1
+
 ### Getting It
 
-TODO: Publish package when ready for 0.1.0
+    $ pip install django-typescript
 
 ### Installing It
 
