@@ -4,31 +4,26 @@ import subprocess
 import os
 from django.conf import settings
 from django_typescript.management.typewriter import typewriter
+from django.db.models import CharField, BigAutoField, TextField, AutoField, IntegerField, FloatField, DecimalField, BooleanField, DateField, DateTimeField, TimeField, DurationField, UUIDField, PositiveSmallIntegerField, EmailField
 
-# TODO: Map from class reference to string
 # TODO: Open interface from user to specify their own mappings
 type_mappings = {
-    'CharField': 'string',
-    'BigAutoField': 'number',
-    'TextField': 'string',
-    'AutoField': 'number',
-    'IntegerField': 'number',
-    'FloatField': 'number',
-    'DecimalField': 'number',
-    'BooleanField': 'boolean',
-    'DateField': 'string',
-    'DateTimeField': 'string',
-    'TimeField': 'string',
-    'DurationField': 'string',
-    'UUIDField': 'string',
-    'PositiveSmallIntegerField': 'number',
+    CharField: 'string',
+    BigAutoField: 'number',
+    TextField: 'string',
+    AutoField: 'number',
+    IntegerField: 'number',
+    FloatField: 'number',
+    DecimalField: 'number',
+    BooleanField: 'boolean',
+    DateField: 'string',
+    DateTimeField: 'string',
+    TimeField: 'string',
+    DurationField: 'string',
+    UUIDField: 'string',
+    PositiveSmallIntegerField: 'number',
+    EmailField: 'string',
 }
-
-relationship_types = [
-    'ForeignKey',
-    'OneToOneField',
-    'ManyToManyField',
-]
 
 """
     For a given model, work through dependencies and add self as node
@@ -38,7 +33,7 @@ def build_node(model, layer, visited):
     traversed_dependencies = []
     
     for local_field in model._meta.local_fields:
-        if local_field.get_internal_type() in relationship_types:
+        if local_field.is_relation:
             traversed_dependencies.append(local_field.related_model)
             dependencies.append(local_field.related_model)
             
@@ -83,18 +78,16 @@ def get_primary_key_field(model):
         
     return None
 
-def hyphenate_model_name(model):
-    model_name = model.__name__
+def hyphenate_name(name):
+    hyphenated = name[0].lower()
     
-    hyphenated = model_name[0].lower()
-    
-    for character in model_name[1:]:
+    for character in name[1:]:
         if character.isupper() or character.isdigit():
             hyphenated += "-" + character.lower()
         elif character.islower():
             hyphenated += character
         else:
-            raise ValueError("Unsupported character (%s) in name (%s) for model class: %s" % (character, model_name, model))
+            raise ValueError("Unsupported character (%s) in name (%s)" % (character, name))
             
     return hyphenated
      
@@ -127,31 +120,39 @@ class Command(BaseCommand):
             dependencies = node[1]
             
             # TODO: Write temporary files, validate, and then move to final destination
-            file_name = "%s.d.ts" % hyphenate_model_name(model)
+            model_name = model.__name__
+            file_name = "%s.d.ts" % hyphenate_name(model_name)
             self.stdout.write('Writing file %s' % file_name)
             with typewriter(file_name, "w") as file:
                 
                 dependency_names = [dep.__name__ for dep in dependencies]
                 
                 if len(dependency_names) > 0:
-                    for dependency in dependency_names:     
-                        file.write_import(dependency, dependency)
+                    for dependency in dependency_names:
+                        file.write_import(dependency, hyphenate_name(dependency)) 
+                    file.write_new_line()
                 
-                file.write_new_line()
-                
+                def get_field_type(field):
+                    if field.is_relation:
+                        related_model = field.related_model
+                        primary_key = get_primary_key_field(related_model)
+                        field_type = "%s[\"%s\"]" % (related_model.__name__, primary_key)
+                    else:  
+                        field_type = type_mappings[local_field.__class__]
+                        
+                    if local_field.null:
+                        field_type += " | null"
+                    if local_field.blank:
+                        field_type += " | undefined"
+                        
+                    return field_type
+                    
                 # TODO: Capture all fields
                 fields = []
                 for local_field in model._meta.local_fields:
                     field_name = local_field.attname
                     
-                    if local_field.is_relation:
-                        related_model = local_field.related_model
-                        primary_key = get_primary_key_field(related_model)
-                        value = "%s[\"%s\"]" % (related_model.__name__, primary_key)
-                        fields.append((field_name, value))
-                    else:  
-                        field_type = type_mappings[local_field.get_internal_type()]
-                        fields.append((field_name, field_type))
+                    fields.append((field_name, get_field_type(local_field)))
                 
                 file.write_export(name, fields)
                 
