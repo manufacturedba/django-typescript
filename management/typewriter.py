@@ -57,22 +57,21 @@ class TypeWriter:
             
         self.imports += import_template.substitute(named_import=named_import, module=module)
     
-    def add_properties(self, properties):
+    def add_property(self, _property):
         """
-        Adds properties to a type
+        Adds property to the type
 
         Args:
-            properties (list((key, value))): List of properties as key-value tuples
+            _property ((key, value)): key-value tuple of property name and type
         
         Examples:
-            >>> add_properties([("name", "string"), ("age", "number")])
+            >>> add_property([("name", "string"), ("age", "number")])
         """
         if self.properties is None:
             self.properties = ""
-            
-        for entry in properties:
-            key, value = entry
-            self.properties += property_template.substitute(key=key, value=value)
+        
+        key, value = _property
+        self.properties += property_template.substitute(key=key, value=value)
     
     def set_name(self, type_name):
         """

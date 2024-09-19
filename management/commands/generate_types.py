@@ -163,9 +163,7 @@ class Command(BaseCommand):
                 for local_field in model._meta.local_fields:
                     field_name = local_field.attname
                     
-                    fields.append((field_name, get_field_type(local_field)))
-                
-                typer.add_properties(fields)
+                    typer.add_property((field_name, get_field_type(local_field)))
                 
                 generated_files.append(file_name)
         
