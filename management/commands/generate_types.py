@@ -7,6 +7,7 @@ from django_typescript.management.typewriter import typewriter
 from django.db.models import CharField, BigAutoField, TextField, AutoField, IntegerField, FloatField, DecimalField, BooleanField, DateField, DateTimeField, TimeField, DurationField, UUIDField, PositiveSmallIntegerField, EmailField
 
 # TODO: Open interface from user to specify their own mappings
+# TODO: Create classes in place of primitives that have client settable properties 
 type_mappings = {
     CharField: 'string',
     BigAutoField: 'number',
@@ -138,6 +139,11 @@ class Command(BaseCommand):
                         related_model = field.related_model
                         primary_key = get_primary_key_field(related_model)
                         field_type = "%s[\"%s\"]" % (related_model.__name__, primary_key)
+                    elif field.choices:
+                        if isinstance(field.choices, dict):
+                            field_type = (" | ").join(["\"%s\"" % field.choices[key] for key in field.choices.keys()])
+                        else:
+                            field_type = (" | ").join(["\"%s\"" % choice[1] for choice in field.choices])
                     else:  
                         field_type = type_mappings[local_field.__class__]
                         
