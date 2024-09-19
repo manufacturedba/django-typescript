@@ -1,10 +1,10 @@
 from django.core.management.base import BaseCommand
 import django.apps
-import subprocess
 import os
 from django.conf import settings
 from django_typescript.management.typewriter import typewriter
 from django.db.models import CharField, BigAutoField, TextField, AutoField, IntegerField, FloatField, DecimalField, BooleanField, DateField, DateTimeField, TimeField, DurationField, UUIDField, PositiveSmallIntegerField, EmailField
+import inspect
 
 # TODO: Open interface from user to specify their own mappings
 # TODO: Create classes in place of primitives that have client settable properties 
@@ -112,6 +112,8 @@ class Command(BaseCommand):
         }
     """  
     def write_types(self, dependency_tree):
+        os.chdir(settings.DJANGO_TYPESCRIPT_DIR)
+        
         generated_files = []
             
         for node in dependency_tree['nodes']:
@@ -184,19 +186,35 @@ class Command(BaseCommand):
         
         return tree;
 
+    def add_arguments(self, parser):
+        # Loosely intended for testing sample models
+        parser.add_argument("model_file", nargs="?", type=str, help="Relative path to a model file.",)
+        
     def handle(self, *args, **options):
+        model_file_name = options["model_file"]
         
         if not hasattr(settings, 'DJANGO_TYPESCRIPT_DIR'):
             raise Exception("DJANGO_TYPESCRIPT_DIR is not defined in settings")
         
         if not os.path.exists(settings.DJANGO_TYPESCRIPT_DIR):
             os.makedirs(settings.DJANGO_TYPESCRIPT_DIR)
+                    
+        def filter_models(model):
+            if model_file_name is None:
+                return True
+            else:
+                filename = inspect.getfile(model)
+                return filename == os.path.abspath(model_file_name)
             
-        os.chdir(settings.DJANGO_TYPESCRIPT_DIR)
+        self.stdout.write('Getting for models in application')
+        application_models = list(filter(filter_models, django.apps.apps.get_models()))
         
-        application_models = django.apps.apps.get_models()
+        # TODO: Try loading models dynamically by provided file before giving up
+        if len(application_models) == 0:
+            self.stdout.write(self.style.ERROR('No models found in application'))
+            return
         
-        self.stdout.write('Searching for models in application')
+        self.stdout.write('Creating dependency mapping for models')
         module_tree = self.create_module_tree(application_models)
         self.stdout.write('Writing types to files')     
         self.write_types(module_tree)
